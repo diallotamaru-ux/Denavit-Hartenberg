@@ -1,0 +1,7 @@
+# Python
+__pycache__/
+*.pyc
+
+# Fichiers générés par render_animation.py
+dh_robot_test/
+dh_robot.gif

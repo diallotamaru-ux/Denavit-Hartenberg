@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>DH render</title>
+<style>
+@font-face { font-family: "Archivo"; src: url(fonts/archivo-latin-400-normal.woff2) format("woff2"); font-weight: 400; }
+@font-face { font-family: "Archivo"; src: url(fonts/archivo-latin-700-normal.woff2) format("woff2"); font-weight: 700; }
+@font-face { font-family: "Archivo"; src: url(fonts/archivo-latin-800-normal.woff2) format("woff2"); font-weight: 800; }
+@font-face { font-family: "JB"; src: url(fonts/jetbrains-mono-latin-400-normal.woff2) format("woff2"); font-weight: 400; }
+@font-face { font-family: "JB"; src: url(fonts/jetbrains-mono-latin-600-normal.woff2) format("woff2"); font-weight: 600; }
+:root { --amber: #c27803; --ink: #16191d; --muted: #5a626c; }
+html, body { margin: 0; width: 1080px; height: 1080px; overflow: hidden; background: #ffffff; }
+#bg { position: absolute; inset: 0; background: #ffffff; }
+canvas { position: absolute; inset: 0; }
+#ov { position: absolute; inset: 0; pointer-events: none; }
+.head { position: absolute; left: 72px; right: 72px; top: 62px; display: flex; flex-direction: column; gap: 14px; }
+.kick { color: var(--amber); font: 600 21px "JB", monospace; letter-spacing: .14em; text-transform: uppercase; }
+.title { color: var(--ink); font: 800 56px/1.06 "Archivo", sans-serif; letter-spacing: -.01em; }
+.sub { color: var(--muted); font: 400 28px/1.35 "Archivo", sans-serif; max-width: 860px; }
+.foot { position: absolute; left: 72px; right: 72px; bottom: 104px; color: #2f3740; font: 400 27px "JB", monospace; white-space: nowrap; }
+.foot .on { color: var(--amber); font-weight: 600; }
+.foot .dim { color: #b3bbc4; }
+.brand { position: absolute; left: 72px; right: 72px; bottom: 50px; display: flex; justify-content: space-between; color: #8a939d; font: 400 19px "JB", monospace; letter-spacing: .06em; }
+.lbl { position: absolute; transform: translate(-50%, -50%); font: 600 25px "JB", monospace; white-space: nowrap; text-shadow: 0 0 6px #fff, 0 0 12px #fff; }
+#end { position: absolute; inset: 0; display: none; background: rgba(255,255,255,.92); }
+#end .box { position: absolute; left: 72px; right: 72px; top: 62px; display: flex; flex-direction: column; gap: 26px; }
+.mat { display: grid; grid-template-columns: auto 1fr auto; align-items: stretch; gap: 0 14px; margin-top: 8px; }
+.br { width: 16px; border: 3px solid #2f3740; }
+.br.l { border-right: none; } .br.r { border-left: none; }
+.cells { display: grid; grid-template-columns: repeat(4, auto); gap: 18px 34px; padding: 14px 4px; font: 400 27px "JB", monospace; color: var(--ink); justify-content: start; }
+.cells .p { color: var(--amber); }
+.mathlbl { font: 600 34px "JB", monospace; color: var(--ink); display: flex; align-items: center; gap: 18px; }
+.legend { display: grid; gap: 10px; font: 400 25px/1.35 "Archivo", sans-serif; color: var(--muted); }
+.legend b { color: var(--ink); font-family: "JB", monospace; font-weight: 600; }
+.cta { margin-top: 14px; padding: 22px 26px; border: 2px solid var(--amber); border-radius: 10px; color: var(--ink); font: 700 32px "Archivo", sans-serif; display: flex; flex-direction: column; gap: 6px; }
+.cta span { color: var(--amber); font: 600 34px "JB", monospace; }
+</style>
+</head>
+<body>
+<div id="bg"></div>
+<div id="ov">
+  <div class="head"><div class="kick" id="kick"></div><div class="title" id="title"></div><div class="sub" id="sub"></div></div>
+  <div class="foot" id="foot"></div>
+  <div class="brand"><span>Tamaru · Convention de Denavit-Hartenberg</span><span>mathascience.com</span></div>
+  <div id="labels"></div>
+  <div id="end"><div class="box">
+    <div class="kick">Convention de Denavit-Hartenberg (1955)</div>
+    <div class="title">4 paramètres,<br>1 matrice par articulation</div>
+    <div class="mathlbl"><span>T<sub>i</sub> =</span>
+      <div class="mat"><div class="br l"></div><div class="cells">
+        <span>cos θ</span><span>−sin θ·cos α</span><span>sin θ·sin α</span><span class="p">a·cos θ</span>
+        <span>sin θ</span><span>cos θ·cos α</span><span>−cos θ·sin α</span><span class="p">a·sin θ</span>
+        <span>0</span><span>sin α</span><span>cos α</span><span class="p">d</span>
+        <span>0</span><span>0</span><span>0</span><span>1</span>
+      </div><div class="br r"></div></div></div>
+    <div class="legend"><div>Bloc 3×3 : <b>rotation</b> · colonne orange : <b>position</b> (m)</div><div>Effecteur : <b>T = T₁ · T₂ · T₃ · T₄ · T₅ · T₆</b></div></div>
+    <div class="cta">Article sur la cinématique directe :<span>mathascience.com</span></div>
+  </div></div>
+</div>
+<script src="three.min.js"></script>
+<script>
+"use strict";
+const W = 1080, H = 1080;
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(W, H);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+document.body.insertBefore(renderer.domElement, document.getElementById("ov"));
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(30, W / H, 0.02, 30);
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x9aa3ad, 0.9));
+const key = new THREE.DirectionalLight(0xffffff, 1.35);
+key.position.set(1.6, 3.2, 1.9); key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048); key.shadow.radius = 6; key.shadow.bias = -0.0004;
+Object.assign(key.shadow.camera, { left: -1.4, right: 1.4, top: 1.4, bottom: -1.4, near: 0.5, far: 8 });
+scene.add(key);
+const rim = new THREE.DirectionalLight(0xdfe9ff, 0.4); rim.position.set(-2.2, 1.4, -2.0); scene.add(rim);
+const fill = new THREE.PointLight(0xffc98a, 0.35, 6); fill.position.set(-0.6, 0.7, 1.4); scene.add(fill);
+
+const floor = new THREE.Mesh(new THREE.CircleGeometry(2.2, 96), new THREE.ShadowMaterial({ opacity: 0.22 }));
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+// grille circulaire discrète
+(function grid() {
+  const g = new THREE.Group(), m = new THREE.LineBasicMaterial({ color: 0xd3d9df, transparent: true, opacity: 0.9 });
+  for (let r = 0.25; r <= 1.5; r += 0.25) { const pts = []; for (let k = 0; k <= 128; k++) { const t = k / 128 * Math.PI * 2; pts.push(new THREE.Vector3(r * Math.cos(t), 0.001, r * Math.sin(t))); }
+    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), m)); }
+  for (let k = 0; k < 12; k++) { const t = k / 12 * Math.PI * 2; g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0.25 * Math.cos(t), 0.001, 0.25 * Math.sin(t)), new THREE.Vector3(1.5 * Math.cos(t), 0.001, 1.5 * Math.sin(t))]), m)); }
+  scene.add(g);
+})();
+
+const root = new THREE.Group(); root.rotation.x = -Math.PI / 2; scene.add(root); // z robot -> haut
+let dyn = new THREE.Group(); root.add(dyn);
+
+const M = {
+  body: new THREE.MeshStandardMaterial({ color: 0xd6dce2, roughness: 0.32, metalness: 0.08 }),
+  cap: new THREE.MeshStandardMaterial({ color: 0x2b3138, roughness: 0.45, metalness: 0.25 }),
+  dark: new THREE.MeshStandardMaterial({ color: 0x3a424b, roughness: 0.5, metalness: 0.4 }),
+  steel: new THREE.MeshStandardMaterial({ color: 0x9aa4ae, roughness: 0.25, metalness: 0.85 }),
+  accent: new THREE.MeshStandardMaterial({ color: 0xf0a63a, roughness: 0.35, metalness: 0.1, emissive: 0x6a3a00, emissiveIntensity: 0.15 }),
+  glow: new THREE.MeshBasicMaterial({ color: 0xd98a12, toneMapped: false }),
+  ax: [0xd8322a, 0x1a9445, 0x2a5fd8].map(c => new THREE.MeshBasicMaterial({ color: c, toneMapped: false })),
+  axDim: [0xd8322a, 0x1a9445, 0x2a5fd8].map(c => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.3, depthWrite: false, toneMapped: false })),
+  dash: new THREE.LineDashedMaterial({ color: 0x8a95a1, dashSize: 0.03, gapSize: 0.022, transparent: true, opacity: 0.8 })
+};
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const toM4 = a => { const m = new THREE.Matrix4(); m.set(a[0],a[1],a[2],a[3],a[4],a[5],a[6],a[7],a[8],a[9],a[10],a[11],0,0,0,1); return m; };
+const O = a => V(a[3], a[7], a[11]);
+const Z = a => V(a[2], a[6], a[10]);
+function cyl(p, q, r, mat, seg = 40) { const v = q.clone().sub(p), L = v.length(); if (L < 1e-6) return null;
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, L, seg), mat); m.position.copy(p).addScaledVector(v, 0.5);
+  m.quaternion.setFromUnitVectors(V(0, 1, 0), v.normalize()); m.castShadow = true; m.receiveShadow = true; dyn.add(m); return m; }
+function sph(p, r, mat) { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 32, 20), mat); m.position.copy(p); m.castShadow = true; dyn.add(m); return m; }
+function housing(o, a, r, h) { // corps d'articulation avec flasques sombres
+  cyl(o.clone().addScaledVector(a, -h), o.clone().addScaledVector(a, h), r, M.body);
+  cyl(o.clone().addScaledVector(a, h - 0.004), o.clone().addScaledVector(a, h + 0.012), r * 1.03, M.cap);
+  cyl(o.clone().addScaledVector(a, -h - 0.012), o.clone().addScaledVector(a, -h + 0.004), r * 1.03, M.cap);
+  cyl(o.clone().addScaledVector(a, h + 0.012), o.clone().addScaledVector(a, h + 0.016), r * 0.55, M.accent);
+}
+function robot(F) {
+  const o = F.map(O), z = F.map(Z);
+  // socle
+  cyl(V(0, 0, 0), V(0, 0, 0.016), 0.105, M.dark, 64);
+  cyl(V(0, 0, 0.016), V(0, 0, 0.05), 0.072, M.body, 64);
+  cyl(V(0, 0, 0.05), V(0, 0, 0.058), 0.074, M.cap, 64);
+  cyl(V(0, 0, 0.058), o[1].clone().addScaledVector(z[1], 0), 0.064, M.body, 64);
+  // épaule, coude, poignets
+  housing(o[1], z[1], 0.068, 0.075);
+  cyl(o[1], o[2], 0.047, M.body);                       // bras (corps 2)
+  housing(o[2], z[2], 0.058, 0.064);
+  cyl(o[2], o[3], 0.039, M.body);                       // avant-bras (corps 3)
+  housing(o[3], z[3], 0.046, 0.052);
+  cyl(o[3], o[4], 0.042, M.body);
+  housing(o[4], z[4], 0.046, 0.05);
+  cyl(o[4], o[5], 0.042, M.body);
+  housing(o[5], z[5], 0.044, 0.045);
+  // pince montée sur la bride (repère 6)
+  const g = new THREE.Group(); g.matrixAutoUpdate = false; g.matrix.copy(toM4(F[6])); dyn.add(g);
+  const add = (geo, mat, x, y, zz) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, zz); m.castShadow = true; g.add(m); return m; };
+  const fl = add(new THREE.CylinderGeometry(0.034, 0.034, 0.012, 40), M.steel, 0, 0, 0.006); fl.rotation.x = Math.PI / 2;
+  add(new THREE.BoxGeometry(0.085, 0.045, 0.05), M.dark, 0, 0, 0.037);
+  add(new THREE.BoxGeometry(0.014, 0.03, 0.068), M.steel, 0.027, 0, 0.096);
+  add(new THREE.BoxGeometry(0.014, 0.03, 0.068), M.steel, -0.027, 0, 0.096);
+  add(new THREE.BoxGeometry(0.06, 0.012, 0.008), M.accent, 0, 0.0285, 0.03);
+}
+function frame(a, L, dim) { // trièdre x, y, z
+  const g = new THREE.Group(); g.matrixAutoUpdate = false; g.matrix.copy(toM4(a)); dyn.add(g);
+  const r = L * 0.035, mats = dim ? M.axDim : M.ax;
+  [0, 1, 2].forEach(k => { const s = new THREE.Group();
+    const sh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, L * 0.8, 20), mats[k]); sh.position.y = L * 0.4;
+    const hd = new THREE.Mesh(new THREE.ConeGeometry(r * 2.5, L * 0.2, 24), mats[k]); hd.position.y = L * 0.9;
+    s.add(sh, hd); if (k === 0) s.rotation.z = -Math.PI / 2; if (k === 2) s.rotation.x = Math.PI / 2; g.add(s); });
+  const c = new THREE.Mesh(new THREE.SphereGeometry(r * 1.9, 20, 14), M.cap); g.add(c);
+}
+function tube(pts, r, mat) { if (pts.length < 2) return; const curve = new THREE.CatmullRomCurve3(pts.map(p => V(p[0], p[1], p[2])));
+  const m = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.min(400, pts.length * 3), r, 12, false), mat); dyn.add(m); }
+function dashed(p, q) { const geo = new THREE.BufferGeometry().setFromPoints([V(...p), V(...q)]); const l = new THREE.Line(geo, M.dash); l.computeLineDistances(); dyn.add(l); }
+
+function clear() { dyn.traverse(o => { if (o.geometry) o.geometry.dispose(); }); root.remove(dyn); dyn = new THREE.Group(); root.add(dyn); }
+function cam(c) { // coordonnées robot (z en haut)
+  const t = V(c.target[0], c.target[2], -c.target[1]); const az = c.azim * Math.PI / 180, el = c.elev * Math.PI / 180;
+  camera.position.set(t.x + c.dist * Math.cos(el) * Math.cos(az), t.y + c.dist * Math.sin(el), t.z - c.dist * Math.cos(el) * Math.sin(az));
+  camera.lookAt(t); camera.updateMatrixWorld(); }
+function project(p) { const v = V(p[0], p[2], -p[1]).project(camera); return [(v.x + 1) / 2 * W, (1 - v.y) / 2 * H]; }
+
+window.draw = function (s) {
+  clear(); cam(s.cam);
+  if (s.robot) robot(s.robot.F);
+  (s.frames || []).forEach(f => frame(f.T, f.L, f.dim));
+  (s.tubes || []).forEach(t => tube(t.pts, t.r, M.glow));
+  (s.dashed || []).forEach(d => dashed(d[0], d[1]));
+  (s.dots || []).forEach(d => sph(V(...d), 0.012, M.glow));
+  renderer.render(scene, camera);
+  document.getElementById("kick").textContent = s.text.kick || "";
+  document.getElementById("title").innerHTML = s.text.title || "";
+  document.getElementById("sub").innerHTML = s.text.sub || "";
+  document.getElementById("foot").innerHTML = s.text.foot || "";
+  document.getElementById("labels").innerHTML = (s.labels || []).map(l => { const [x, y] = project(l.p);
+    return `<div class="lbl" style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px;color:${l.c || "#c27803"}">${l.t}</div>`; }).join("");
+  document.getElementById("end").style.display = s.end ? "block" : "none";
+  document.getElementById("end").style.opacity = s.end ? s.end : 0;
+  return true;
+};
+window.ready = document.fonts.ready.then(() => true);
+</script>
+</body>
+</html>
